@@ -1,2 +1,11 @@
+# MacOS files
 .idea
+
+# Dependencies
 maelstrom/
+
+# Build
+store/
+**/go.sum
+maelstrom-echo/maelstrom-echo
+maelstrom-unique-ids/maelstrom-unique-ids
