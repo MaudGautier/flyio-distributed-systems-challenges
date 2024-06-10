@@ -2,14 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 	"log"
-	"os"
 )
 
 func main() {
 	n := maelstrom.NewNode()
+
+	var messages []interface{}
 
 	// Broadcast - input message body
 	//{
@@ -22,7 +22,6 @@ func main() {
 	//  "type": "broadcast_ok",
 	//}
 
-	var messages []interface{}
 	n.Handle("broadcast", func(msg maelstrom.Message) error {
 		// Unmarshal the message body as a loosely-typed map.
 		var body map[string]any
@@ -37,8 +36,32 @@ func main() {
 		returnBody := make(map[string]interface{})
 		returnBody["type"] = "broadcast_ok"
 
+		// Broadcast to other nodes in the topology
+		neighbors := n.NodeIDs()
+
+		for _, neighbor := range neighbors {
+			neighborBody := make(map[string]interface{})
+			neighborBody["type"] = "rebroadcast"
+			neighborBody["message"] = body["message"]
+			n.Send(neighbor, neighborBody)
+		}
+
 		// Echo the original message back with the updated message type.
 		return n.Reply(msg, returnBody)
+	})
+
+	n.Handle("rebroadcast", func(msg maelstrom.Message) error {
+		// Unmarshal the message body as a loosely-typed map.
+		var body map[string]any
+		if err := json.Unmarshal(msg.Body, &body); err != nil {
+			return err
+		}
+
+		// Add message to list of messages
+		messages = append(messages, body["message"])
+
+		// Echo the original message back with the updated message type.
+		return nil
 	})
 
 	// Read - input message body
@@ -87,11 +110,8 @@ func main() {
 		// Unmarshal the message body as a loosely-typed map.
 		var body map[string]any
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
-			fmt.Println("ERROR is ", err)
 			return err
 		}
-
-		fmt.Fprintf(os.Stderr, "Get to return body\n")
 
 		// Create return body
 		returnBody := make(map[string]string)
