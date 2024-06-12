@@ -7,9 +7,11 @@ import (
 )
 
 func main() {
+
 	n := maelstrom.NewNode()
 
 	var messages []interface{}
+	var topology = make(map[string][]string)
 
 	// Broadcast - input message body
 	//{
@@ -37,7 +39,7 @@ func main() {
 		returnBody["type"] = "broadcast_ok"
 
 		// Broadcast to other nodes in the topology
-		neighbors := n.NodeIDs()
+		neighbors := getNeighbors(*n, topology)
 
 		for _, neighbor := range neighbors {
 			neighborBody := make(map[string]interface{})
@@ -107,11 +109,8 @@ func main() {
 	//}
 
 	n.Handle("topology", func(msg maelstrom.Message) error {
-		// Unmarshal the message body as a loosely-typed map.
-		var body map[string]any
-		if err := json.Unmarshal(msg.Body, &body); err != nil {
-			return err
-		}
+		// Record topology
+		topology, _ = getTopology(msg)
 
 		// Create return body
 		returnBody := make(map[string]string)
@@ -125,4 +124,37 @@ func main() {
 		log.Fatal(err)
 	}
 
+}
+
+func getNeighbors(n maelstrom.Node, topology map[string][]string) []string {
+	return n.NodeIDs()
+
+	// TODO: At some point use the correct topology
+	//return topology[n.ID()]
+}
+
+func getTopology(msg maelstrom.Message) (map[string][]string, error) {
+	// Unmarshal the message body as a loosely-typed map.
+	var body map[string]any
+	if err := json.Unmarshal(msg.Body, &body); err != nil {
+		return nil, err
+	}
+
+	// Extract topology from JSON
+	var topology = make(map[string][]string)
+	if topo, ok := body["topology"].(map[string]interface{}); ok {
+		for key, value := range topo {
+			if neighbors, ok := value.([]interface{}); ok {
+				var strSlice []string
+				for _, neighbor := range neighbors {
+					strSlice = append(strSlice, neighbor.(string))
+				}
+				topology[key] = strSlice
+			}
+		}
+	} else {
+		log.Fatalf("Invalid topology format")
+	}
+
+	return topology, nil
 }
