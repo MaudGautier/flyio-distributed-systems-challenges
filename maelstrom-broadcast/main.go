@@ -126,10 +126,7 @@ func main() {
 }
 
 func getNeighbors(n *maelstrom.Node, topology map[string][]string) []string {
-	return n.NodeIDs()
-
-	// TODO: At some point use the correct topology
-	//return topology[n.ID()]
+	return topology[n.ID()]
 }
 
 func getTopology(msg maelstrom.Message) (map[string][]string, error) {
