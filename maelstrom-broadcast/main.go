@@ -55,7 +55,7 @@ func main() {
 		messages = append(messages, body["message"])
 
 		// Broadcast to other nodes in the topology
-		neighbors := getNeighbors(*n, topology)
+		neighbors := getNeighbors(n, topology)
 
 		for _, neighbor := range neighbors {
 			n.Send(neighbor, body)
@@ -125,7 +125,7 @@ func main() {
 
 }
 
-func getNeighbors(n maelstrom.Node, topology map[string][]string) []string {
+func getNeighbors(n *maelstrom.Node, topology map[string][]string) []string {
 	return n.NodeIDs()
 
 	// TODO: At some point use the correct topology
