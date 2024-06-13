@@ -6,6 +6,17 @@ import (
 	"log"
 )
 
+// Message specification
+//{
+//  "src": "c1",
+//  "dest": "n1",
+//  "body": {
+//    "type": "echo",
+//    "msg_id": 1,
+//    "echo": "Please echo 35"
+//  }
+//}
+
 func main() {
 
 	n := maelstrom.NewNode()
@@ -31,39 +42,27 @@ func main() {
 			return err
 		}
 
-		// Add message to list of messages
-		messages = append(messages, body["message"])
-
 		// Create return body
 		returnBody := make(map[string]interface{})
 		returnBody["type"] = "broadcast_ok"
+
+		// If message already seen, do nothing (only reply ok)
+		if seen := isMessageInList(messages, body["message"].(float64)); seen {
+			return n.Reply(msg, returnBody)
+		}
+
+		// Add message to list of messages
+		messages = append(messages, body["message"])
 
 		// Broadcast to other nodes in the topology
 		neighbors := getNeighbors(*n, topology)
 
 		for _, neighbor := range neighbors {
-			neighborBody := make(map[string]interface{})
-			neighborBody["type"] = "rebroadcast"
-			neighborBody["message"] = body["message"]
-			n.Send(neighbor, neighborBody)
+			n.Send(neighbor, body)
 		}
 
 		// Echo the original message back with the updated message type.
 		return n.Reply(msg, returnBody)
-	})
-
-	n.Handle("rebroadcast", func(msg maelstrom.Message) error {
-		// Unmarshal the message body as a loosely-typed map.
-		var body map[string]any
-		if err := json.Unmarshal(msg.Body, &body); err != nil {
-			return err
-		}
-
-		// Add message to list of messages
-		messages = append(messages, body["message"])
-
-		// Echo the original message back with the updated message type.
-		return nil
 	})
 
 	// Read - input message body
@@ -157,4 +156,13 @@ func getTopology(msg maelstrom.Message) (map[string][]string, error) {
 	}
 
 	return topology, nil
+}
+
+func isMessageInList(messages []interface{}, searchedMessage float64) bool {
+	for _, message := range messages {
+		if message == searchedMessage {
+			return true
+		}
+	}
+	return false
 }
