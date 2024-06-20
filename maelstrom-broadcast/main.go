@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 	"log"
+	"time"
 )
 
 // Message specification
@@ -23,6 +24,8 @@ func main() {
 
 	var messages []interface{}
 	var topology = make(map[string][]string)
+
+	go periodicBroadcast(n, topology, &messages)
 
 	// Broadcast - input message body
 	//{
@@ -162,4 +165,30 @@ func isMessageInList(messages []interface{}, searchedMessage float64) bool {
 		}
 	}
 	return false
+}
+
+func periodicBroadcast(node *maelstrom.Node, topology map[string][]string, messages *[]interface{}) {
+	ticker := time.NewTicker(1 * time.Second)
+	for _ = range ticker.C {
+		// Broadcast to all nodes
+		neighbors := node.NodeIDs()
+
+		for _, neighbor := range neighbors {
+			if neighbor == node.ID() {
+				continue
+			}
+
+			for _, message := range *messages {
+				// Create a new message body from scratch
+				body := map[string]interface{}{
+					"type":    "broadcast",
+					"message": message,
+				}
+				node.Send(neighbor, body)
+			}
+
+		}
+
+	}
+
 }
