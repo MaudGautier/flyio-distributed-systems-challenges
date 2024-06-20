@@ -25,7 +25,7 @@ func main() {
 	var messages []interface{}
 	var topology = make(map[string][]string)
 
-	go periodicBroadcast(n, topology, &messages)
+	go periodicBroadcast(n, &topology, &messages)
 
 	// Broadcast - input message body
 	//{
@@ -171,11 +171,11 @@ func isMessageInList(messages []interface{}, searchedMessage float64) bool {
 	return false
 }
 
-func periodicBroadcast(node *maelstrom.Node, topology map[string][]string, messages *[]interface{}) {
+func periodicBroadcast(node *maelstrom.Node, topology *map[string][]string, messages *[]interface{}) {
 	ticker := time.NewTicker(1 * time.Second)
 	for _ = range ticker.C {
-		// Broadcast to all nodes
-		neighbors := node.NodeIDs()
+		// Broadcast to other nodes in the topology
+		neighbors := getNeighbors(node, *topology)
 
 		for _, neighbor := range neighbors {
 			if neighbor == node.ID() {
