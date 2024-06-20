@@ -68,6 +68,10 @@ func main() {
 		return n.Reply(msg, returnBody)
 	})
 
+	n.Handle("broadcast_ok", func(msg maelstrom.Message) error {
+		return nil
+	})
+
 	// Read - input message body
 	//{
 	//  "type": "read"
