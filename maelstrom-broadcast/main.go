@@ -66,6 +66,9 @@ func main() {
 		neighbors := getNeighbors(n, topology)
 
 		for _, neighbor := range neighbors {
+			if msg.Src == neighbor {
+				continue
+			}
 			n.Send(neighbor, body)
 		}
 
