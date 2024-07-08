@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -17,6 +18,8 @@ import (
 //    "echo": "Please echo 35"
 //  }
 //}
+
+var mutex sync.Mutex
 
 func main() {
 
@@ -55,7 +58,9 @@ func main() {
 		}
 
 		// Add message to list of messages
+		mutex.Lock()
 		messages = append(messages, body["message"])
+		mutex.Unlock()
 
 		// Broadcast to other nodes in the topology
 		neighbors := getNeighbors(n, topology)
