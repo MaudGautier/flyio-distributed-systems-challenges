@@ -80,6 +80,29 @@ func main() {
 		return nil
 	})
 
+	n.Handle("periodic_broadcast", func(msg maelstrom.Message) error {
+		// Unmarshal the message body as a loosely-typed map.
+		var body map[string]any
+		if err := json.Unmarshal(msg.Body, &body); err != nil {
+			return err
+		}
+
+		for message := range body["message"].([]interface{}) {
+			// If message already seen, do nothing
+			if seen := isMessageInList(messages, float64(message)); seen {
+				continue
+			}
+
+			// Add message to list of messages
+			mutex.Lock()
+			messages = append(messages, float64(message))
+			mutex.Unlock()
+
+		}
+
+		return nil
+	})
+
 	// Read - input message body
 	//{
 	//  "type": "read"
@@ -190,14 +213,12 @@ func periodicBroadcast(node *maelstrom.Node, topology *map[string][]string, mess
 				continue
 			}
 
-			for _, message := range *messages {
-				// Create a new message body from scratch
-				body := map[string]interface{}{
-					"type":    "broadcast",
-					"message": message,
-				}
-				node.Send(neighbor, body)
+			// Create a new message body from scratch with all messages
+			body := map[string]interface{}{
+				"type":    "periodic_broadcast",
+				"message": messages,
 			}
+			node.Send(neighbor, body)
 
 		}
 
