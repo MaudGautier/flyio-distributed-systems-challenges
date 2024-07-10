@@ -7,6 +7,4 @@ maelstrom/
 # Build
 store/
 **/go.sum
-maelstrom-echo/maelstrom-echo
-maelstrom-unique-ids/maelstrom-unique-ids
-maelstrom-broadcast/maelstrom-broadcast
+**/bin
