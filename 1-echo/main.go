@@ -6,6 +6,7 @@ import (
 	"log"
 )
 
+// Message sent by the Maelstrom client
 //{
 //  "src": "c1",
 //  "dest": "n1",
@@ -16,6 +17,7 @@ import (
 //  }
 //}
 
+// Response given by a server node (in this implementation)
 //{
 //  "src": "n1",
 //  "dest": "c1",
@@ -31,7 +33,7 @@ func main() {
 	n := maelstrom.NewNode()
 
 	n.Handle("echo", func(msg maelstrom.Message) error {
-		// Unmarshal the message body as an loosely-typed map.
+		// Unmarshal the message body as a loosely-typed map.
 		var body map[string]any
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
@@ -43,8 +45,6 @@ func main() {
 		// Echo the original message back with the updated message type.
 		return n.Reply(msg, body)
 	})
-
-	//fmt.Println("Starting server...")
 
 	if err := n.Run(); err != nil {
 		log.Fatal(err)
