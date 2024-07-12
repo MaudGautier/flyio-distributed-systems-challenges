@@ -87,7 +87,8 @@ func main() {
 			return err
 		}
 
-		for message := range body["message"].([]interface{}) {
+		for _, message := range body["message"].([]interface{}) {
+
 			// If message already seen, do nothing
 			if seen := isMessageInList(messages, message); seen {
 				continue
