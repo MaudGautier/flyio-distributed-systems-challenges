@@ -62,16 +62,6 @@ func main() {
 		messages = append(messages, body["message"])
 		mutex.Unlock()
 
-		// Broadcast to other nodes in the topology
-		neighbors := getNeighbors(n, topology)
-
-		for _, neighbor := range neighbors {
-			if msg.Src == neighbor {
-				continue
-			}
-			n.Send(neighbor, body)
-		}
-
 		// Echo the original message back with the updated message type.
 		return n.Reply(msg, returnBody)
 	})
@@ -203,8 +193,13 @@ func isMessageInList(messages []interface{}, searchedMessage interface{}) bool {
 }
 
 func periodicBroadcast(node *maelstrom.Node, topology *map[string][]string, messages *[]interface{}) {
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(200 * time.Millisecond)
 	for _ = range ticker.C {
+		// Do not broadcast if there are no messages
+		if len(*messages) == 0 {
+			continue
+		}
+
 		// Broadcast to other nodes in the topology
 		neighbors := getNeighbors(node, *topology)
 
