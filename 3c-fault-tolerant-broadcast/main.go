@@ -205,6 +205,11 @@ func isMessageInList(messages []interface{}, searchedMessage interface{}) bool {
 func periodicBroadcast(node *maelstrom.Node, topology *map[string][]string, messages *[]interface{}) {
 	ticker := time.NewTicker(1 * time.Second)
 	for _ = range ticker.C {
+		// Do not broadcast if there are no messages
+		if len(*messages) == 0 {
+			continue
+		}
+
 		// Broadcast to other nodes in the topology
 		neighbors := getNeighbors(node, *topology)
 
