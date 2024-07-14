@@ -50,7 +50,7 @@ func main() {
 		returnBody["type"] = "broadcast_ok"
 
 		// If message already seen, do nothing (only reply ok)
-		if seen := isMessageInList(messages, body["message"].(float64)); seen {
+		if seen := isMessageInList(messages, body["message"]); seen {
 			return n.Reply(msg, returnBody)
 		}
 
@@ -160,7 +160,7 @@ func getTopology(msg maelstrom.Message) (map[string][]string, error) {
 	return topology, nil
 }
 
-func isMessageInList(messages []interface{}, searchedMessage float64) bool {
+func isMessageInList(messages []interface{}, searchedMessage interface{}) bool {
 	for _, message := range messages {
 		if message == searchedMessage {
 			return true
