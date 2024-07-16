@@ -42,13 +42,17 @@ We get 9.5 inter-server messages, which is close to the expectations.
 
 Note that it is slightly less than the expectations though: I will explain why in the next section.
 
+(NB: THe real number is actually the double, since all messages get an "ok" reply. The number of messages per operation
+reported in Maelstrom is also roughly divided by 2 since an "operation" counts both reads and broadcasts, but reads do
+not lead to any "ok" reply between servers, only to the Maelstrom client).
+
 ## Expectations VS observations when broadcasting to all neighbors but the sender
 
 In a second version, I decided _not_ to broadcast the message to the one neighbor from which the message originates.
 That is: if `n0` broadcasts to `n1`, `n1` will itself broadcast only to `n2` and `n4` but not to `n0` since it is the
 node from which it received it in the first place.
 
-In that case, the expectations are to get 6 inter-server messages.
+In that case, the expectations are to get 6 inter-server messages (12 if the "ok" replies were counted).
 
 - `n0`: 1 message (to `n1` if it received it from `n3` and vice-versa)
 - `n1`: 2 messages (two among `n0`, `n2` and `n4`)
@@ -154,17 +158,17 @@ I observed that the number of messages per operation varies depending on the Mae
 It seems to be related to the ratio of reads over broadcast messages sent by Maelstrom.
 Here are the numbers I observed on a few runs:
 
-| # Broadcasts | # Reads | R/B Ratio | # Msgs per ops | # Msgs per broadcast |
-|--------------|---------|-----------|----------------|----------------------|
-| 104          | 89      | 0.86      | 6.4974093      | 6.029                |
-| 111          | 100     | 0.91      | 6.3601894      | 6.045                |
-| 97           | 98      | 1.01      | 5.9692307      | 6.000                |
-| 102          | 107     | 1.05      | 5.866029       | 6.010                |
-| 93           | 102     | 1.10      | 5.7755103      | 6.055                |
-| 94           | 105     | 1.12      | 5.708543       | 6.043                |
-| 96           | 113     | 1.18      | 5.521531       | 6.010                |
-| 91           | 115     | 1.26      | 5.300971       | 6.000                |
-| 86           | 109     | 1.27      | 5.302564       | 6.012                |
+| # Broadcasts | # Reads | R/B Ratio | # Msgs per ops | # Msgs per broadcast (without "ok") |
+|--------------|---------|-----------|----------------|-------------------------------------|
+| 104          | 89      | 0.86      | 6.4974093      | 6.029                               |
+| 111          | 100     | 0.91      | 6.3601894      | 6.045                               |
+| 97           | 98      | 1.01      | 5.9692307      | 6.000                               |
+| 102          | 107     | 1.05      | 5.866029       | 6.010                               |
+| 93           | 102     | 1.10      | 5.7755103      | 6.055                               |
+| 94           | 105     | 1.12      | 5.708543       | 6.043                               |
+| 96           | 113     | 1.18      | 5.521531       | 6.010                               |
+| 91           | 115     | 1.26      | 5.300971       | 6.000                               |
+| 86           | 109     | 1.27      | 5.302564       | 6.012                               |
 
 The higher the reads/broadcasts ratio, the lower the number of messages per operation.
 Since reads lead to no inter-server messages whereas broadcasts do, it makes sense that a higher proportion of reads
@@ -175,7 +179,7 @@ observed number is slightly different from that expected.
 
 A better metric would be to compute the number of messages per broadcast.
 This can be done with this formula:
-`#msgs_per_ops / #broadcasts * (#broadcasts + #reads)/2`.
+`#msgs_per_ops / #broadcasts * (#broadcasts + #reads)/2` (NB: I divide by 2 to remove the "ok" replies from the counts).
 I added the results in the last column.
 With this metric, the number of messages per broadcasts is exactly what is expected (sometimes very slightly higher,
 because of the race conditions mentioned above).
