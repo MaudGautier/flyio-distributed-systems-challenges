@@ -184,6 +184,64 @@ I added the results in the last column.
 With this metric, the number of messages per broadcasts is exactly what is expected (sometimes very slightly higher,
 because of the race conditions mentioned above).
 
+## Removing race conditions
+
+After running a few tests, I figured that there was approximately 1 race condition every 100 runs.
+So the expectation of number of inter-server messages per broadcast is `(6*99+1*8) / 100 = 6.02`.
+That's exactly what we are getting in the results in the table above (numbers are always 6 or slightly higher -
+depending on the number of race conditions obtained).
+
+The race condition is obtained in this piece of code:
+
+```go
+// Check if message should be added
+if seen := isMessageInList(messages, body["message"]); seen {
+return n.Reply(msg, returnBody)
+}
+
+// Add message to list of messages
+mutex.Lock()
+messages = append(messages, body["message"])
+mutex.Unlock()
+```
+
+Indeed, if the same message arrives from two neighbors at the same time, the sequence of events is:
+
+1. `isMessageInList` check from neighbor 1 -> False
+2. `isMessageInList` check from neighbor 2 -> False
+3. Take lock to append message from neighbor 1
+4. Take lock to append message from neighbor 2
+
+In other words, since the `isMessageInList` is checked before the message from the first node is appended to the list,
+the message is processed twice (and thus, appended twice and re-broadcast twice).
+
+To avoid this, a solution is to have the lock taken before making the check on the `isMessageInList`.
+But that would impede performance hugely as locks are taken much longer than necessary.
+
+An alternative is to use this pattern (pseudocode):
+
+```
+if condition() {
+  takeLock()
+  if condition() {
+    doAction()
+  }
+  releaseLock()
+}
+```
+
+With this pattern, the lock is taken only when necessary and thus, performance is not too impeded, at the extra cost of
+having to check the condition twice when there is a potential race condition.
+
+After implementing this in the code and running the experiment, I get thos numbers:
+
+- Number of broadcasts: 91
+- Number of reads: 106
+- Number of inter-server messages per operation: 5.543147
+
+After normalizing to get the number of inter-server messages per broadcast, I get `5.543147/91*(91+106)/2`, which is
+exactly `6.000`. Therefore, this logic allows to prevent all race conditions and the system behaves exactly as expected.
+
 ## Conclusions
 
 - 10 messages expected (and observed) when rebroadcasting to all neighbors
