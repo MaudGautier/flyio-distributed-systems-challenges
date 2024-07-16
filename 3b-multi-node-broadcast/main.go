@@ -50,12 +50,23 @@ func main() {
 		returnBody["type"] = "broadcast_ok"
 
 		// If message already seen, do nothing (only reply ok)
+		// Optimization to avoid race condition while taking the lock for as little time as possible:
+		// if condition() {
+		//	 lock
+		//	 if condition() {
+		//	 	do action
+		//	 }
+		//}
 		if seen := isMessageInList(messages, body["message"]); seen {
 			return n.Reply(msg, returnBody)
 		}
-
-		// Add message to list of messages
 		mutex.Lock()
+		if seen := isMessageInList(messages, body["message"]); seen {
+			mutex.Unlock()
+			return n.Reply(msg, returnBody)
+		}
+		
+		// Add message to list of messages
 		messages = append(messages, body["message"])
 		mutex.Unlock()
 
