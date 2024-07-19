@@ -26,9 +26,8 @@ func main() {
 	n := maelstrom.NewNode()
 
 	var messages []interface{}
-	var topology = make(map[string][]string)
 
-	go periodicBroadcast(n, &topology, &messages)
+	go periodicBroadcast(n, &messages)
 
 	// Broadcast - input message body
 	//{
@@ -62,13 +61,11 @@ func main() {
 		messages = append(messages, body["message"])
 		mutex.Unlock()
 
-		// Broadcast to other nodes in the topology
-		neighbors := getNeighbors(n, topology)
+		// Rebroadcast to all other nodes
+		neighbors := getFlatTreeNeighbors(n)
 
 		for _, neighbor := range neighbors {
-			if msg.Src == neighbor {
-				continue
-			}
+			body["type"] = "rebroadcast"
 			n.Send(neighbor, body)
 		}
 
@@ -77,6 +74,26 @@ func main() {
 	})
 
 	n.Handle("broadcast_ok", func(msg maelstrom.Message) error {
+		return nil
+	})
+
+	n.Handle("rebroadcast", func(msg maelstrom.Message) error {
+		// Unmarshal the message body as a loosely-typed map.
+		var body map[string]any
+		if err := json.Unmarshal(msg.Body, &body); err != nil {
+			return err
+		}
+
+		// If message already seen, do nothing (only reply ok)
+		if seen := isMessageInList(messages, body["message"]); seen {
+			return nil
+		}
+
+		// Add message to list of messages
+		mutex.Lock()
+		messages = append(messages, body["message"])
+		mutex.Unlock()
+
 		return nil
 	})
 
@@ -147,9 +164,6 @@ func main() {
 	//}
 
 	n.Handle("topology", func(msg maelstrom.Message) error {
-		// Record topology
-		topology, _ = getTopology(msg)
-
 		// Create return body
 		returnBody := make(map[string]string)
 		returnBody["type"] = "topology_ok"
@@ -164,34 +178,14 @@ func main() {
 
 }
 
-func getNeighbors(n *maelstrom.Node, topology map[string][]string) []string {
-	return topology[n.ID()]
-}
-
-func getTopology(msg maelstrom.Message) (map[string][]string, error) {
-	// Unmarshal the message body as a loosely-typed map.
-	var body map[string]any
-	if err := json.Unmarshal(msg.Body, &body); err != nil {
-		return nil, err
-	}
-
-	// Extract topology from JSON
-	var topology = make(map[string][]string)
-	if topo, ok := body["topology"].(map[string]interface{}); ok {
-		for key, value := range topo {
-			if neighbors, ok := value.([]interface{}); ok {
-				var strSlice []string
-				for _, neighbor := range neighbors {
-					strSlice = append(strSlice, neighbor.(string))
-				}
-				topology[key] = strSlice
-			}
+func getFlatTreeNeighbors(n *maelstrom.Node) []string {
+	var allNeighbors []string
+	for _, id := range n.NodeIDs() {
+		if id != n.ID() {
+			allNeighbors = append(allNeighbors, id)
 		}
-	} else {
-		log.Fatalf("Invalid topology format")
 	}
-
-	return topology, nil
+	return allNeighbors
 }
 
 func isMessageInList(messages []interface{}, searchedMessage interface{}) bool {
@@ -203,11 +197,11 @@ func isMessageInList(messages []interface{}, searchedMessage interface{}) bool {
 	return false
 }
 
-func periodicBroadcast(node *maelstrom.Node, topology *map[string][]string, messages *[]interface{}) {
+func periodicBroadcast(node *maelstrom.Node, messages *[]interface{}) {
 	ticker := time.NewTicker(1 * time.Second)
-	for _ = range ticker.C {
+	for range ticker.C {
 		// Broadcast to other nodes in the topology
-		neighbors := getNeighbors(node, *topology)
+		neighbors := getFlatTreeNeighbors(node)
 
 		for _, neighbor := range neighbors {
 			if neighbor == node.ID() {
