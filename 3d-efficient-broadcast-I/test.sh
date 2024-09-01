@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Build
+set -e
 go build -o bin
 
 # With nemesis
